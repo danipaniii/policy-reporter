@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	cloud.google.com/go/storage v1.36.0
+	github.com/aws/aws-sdk-go v1.51.19
 	github.com/aws/aws-sdk-go-v2 v1.24.1
 	github.com/aws/aws-sdk-go-v2/config v1.26.3
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.14

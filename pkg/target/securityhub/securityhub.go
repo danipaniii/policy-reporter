@@ -7,6 +7,8 @@ import (
 
 	hub "github.com/aws/aws-sdk-go-v2/service/securityhub"
 	"github.com/aws/aws-sdk-go-v2/service/securityhub/types"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sts"
 	"go.uber.org/zap"
 
 	"github.com/kyverno/policy-reporter/pkg/crd/api/policyreport/v1alpha2"
@@ -32,7 +34,26 @@ type client struct {
 	productName  string
 }
 
+func get_current_role() {
+	sess := session.Must(session.NewSession())
+	svc := sts.New(sess)
+
+	res, err := svc.GetCallerIdentity(nil)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	fmt.Println("Assumed Role:", *res.Arn)
+}
+
 func (c *client) Send(result v1alpha2.PolicyReportResult) {
+	get_current_role()
+
+	fmt.Println(result)
+	fmt.Println("Result Severity:", result.Severity)
+	fmt.Println("Client:", c)
+
 	generator := result.Policy
 	if generator == "" {
 		generator = result.Rule
@@ -57,6 +78,7 @@ func (c *client) Send(result v1alpha2.PolicyReportResult) {
 				AwsAccountId:  accID,
 				SchemaVersion: toPointer("2018-10-08"),
 				ProductArn:    toPointer("arn:aws:securityhub:" + c.region + ":" + c.accountID + ":product/" + c.accountID + "/default"),
+				ProductName:   toPointer("Policy Reporter"),
 				GeneratorId:   toPointer(fmt.Sprintf("%s/%s", result.Source, generator)),
 				Types:         []string{"Software and Configuration Checks"},
 				CreatedAt:     toPointer(t.Format("2006-01-02T15:04:05.999999999Z07:00")),
@@ -85,7 +107,8 @@ func (c *client) Send(result v1alpha2.PolicyReportResult) {
 		},
 	})
 	if err != nil {
-		zap.L().Error(c.Name()+": PUSH FAILED", zap.Error(err), zap.Any("response", res))
+		zap.L().Error(c.Name()+": PUSH FAILED", zap.Any("Err:", err), zap.Any("response", res))
+		fmt.Println("Error:", err)
 		return
 	}
 
